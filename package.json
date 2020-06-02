@@ -1,0 +1,34 @@
+{
+  "name": "davos-sfra-sample",
+  "version": "1.0.0",
+  "description": "Davos SFRA Sample",
+  "main": "index.js",
+  "engines": {
+    "node": ">=4.0 <12.0.0"
+  },
+  "scripts": {
+    "davos": "node davos-ex.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ForkPoint/davos-sample-project.git"
+  },
+  "author": "Fork Point Ltd",
+  "license": "ISC",
+  "homepage": "https://github.com/ForkPoint/davos-sample-project",
+  "packageName": "app_sampleDavos",
+  "babel": {
+    "presets": [
+      "env"
+    ]
+  },
+  "dependencies": {
+    "grunt": "^1.1.0",
+    "load-grunt-config": "^3.0.1",
+    "require-dir": "^1.2.0",
+    "time-grunt": "^2.0.0"
+  },
+  "devDependencies": {
+    "gulp": "^4.0.2"
+  }
+}

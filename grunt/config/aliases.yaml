@@ -1,0 +1,13 @@
+# Yaml Parser:  http://yaml-online-parser.appspot.com/
+davos-split:
+- 'davos_split:split'
+davos-merge:
+- 'davos_merge:merge'
+davos-upload-meta:
+- 'davos:upload-meta'
+davos-upload-site:
+- 'davos:upload-site'
+davos-build:
+- 'davos:merge'
+- 'davos:upload-meta'
+- 'davos:upload-site'
