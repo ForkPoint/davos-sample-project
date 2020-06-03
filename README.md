@@ -248,6 +248,6 @@ gulp davos:split
 ```
 
 ```cmd
-gulp davos:split
+gulp davos:merge
 ```
 
