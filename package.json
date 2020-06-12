@@ -25,6 +25,7 @@
   "dependencies": {
     "grunt": "^1.1.0",
     "load-grunt-config": "^3.0.1",
+    "load-grunt-tasks": "^5.1.0",
     "require-dir": "^1.2.0",
     "time-grunt": "^2.0.0"
   },

@@ -13,37 +13,67 @@ The sole purpose of this documentation is  **NOT to show *Davos* functionalities
 To setup **Davos** to work with NPM Script task, we first need to add it to our **package.json** and create a simple **davos javascript** file.
 
 - Davos JS
-> This is just a sample code, containing only 2 Davos functionalities.
+> This is just a sample code, containing only a few Davos functionalities.
 > Please note that the given paths to files will vary depending on the project setup
 ```javascript
 const  Davos = require('davos');
 
-function  init() {
-const  davos = new  Davos();
-const  davosCommands = ['merge', 'split'];
-const  args = process.argv;
-let  command = '';
+async function switchVer(davos, args) {
+    let version = args.find((el) => el.indexOf('--ver') != -1);
 
-for (let  i = 0; i < davosCommands.length; i++) {
-	if (args.indexOf(davosCommands[i]) > -1) {
-		command = davosCommands[i];
-		break;
-	}
+    if (!version) {
+        console.log('Please specify a version');
+        console.log('To list all available versions, execute "npm run davos -- code-list"');
+        return;
+    }
+
+    version = version.split('=')[1];
+    await davos.activateCodeVersion(version);
 }
 
-switch (command) {
-	case  'split':
-		davos.split('sites/site_template/meta/system-objecttype-extensions.xml', 'sites/site_template/SplittedMeta');
-		break;
-	case  'merge':
-		davos.merge('sites/site_template/SplittedMeta', 'sites/site_template/Metadata.xml');
-		break;
-	default:
-		console.log('\x1b[31m', 'Please provide an valid task command');
-		console.log('\x1b[40m');
-		console.log('\x1b[37m');
-		break;
+async function site(davos, args) {
+    let fileName = args.find((el) => el.indexOf('--file') != -1);
+
+    if (!fileName) {
+        await davos.uploadSitesMeta();
+    } else {
+        fileName = fileName.split('=')[1];
+        await davos.uploadSitesMeta(fileName);
+    }
+}
+
+async function  init() {
+	const  davos = new  Davos();
+	const  davosCommands = ['merge', 'split', 'upload-site', 'code-switch'];
+	const  args = process.argv;
+	let  command = '';
+
+	for (let  i = 0; i < davosCommands.length; i++) {
+		if (args.indexOf(davosCommands[i]) > -1) {
+			command = davosCommands[i];
+			break;
+		}
 	}
+
+	switch (command) {
+		case  'code-switch':
+			await  switchVer(davos, process.argv);
+			break;
+		case  'upload-site':	
+			await  site(davos, process.argv);
+			break;
+		case  'split':
+			await davos.split('sites/site_template/meta/system-objecttype-extensions.xml', 'sites/site_template/SplittedMeta');
+			break;
+		case  'merge':
+			await davos.merge('sites/site_template/SplittedMeta', 'sites/site_template/Metadata.xml');
+			break;
+		default:
+			console.log('\x1b[31m', 'Please provide an valid task command');
+			console.log('\x1b[40m');
+			console.log('\x1b[37m');
+			break;
+		}
 }
 
 module.exports = init();
@@ -66,6 +96,11 @@ npm run davos -- split
 npm run davos -- merge
 ```
 
+- Also pass the correct arguments to some of the functions:
+```cmd
+npm run davos -- code-switch --ver=nameofversion
+```
+
 ---
 ### Grunt setup
 > NOTE: setup may vary, depending on Gruntfile setup configuration and structure
@@ -74,119 +109,148 @@ To setup Grunt to work with Davos, we have a sample Gruntfile
 &nbsp;
 
 - Gruntfile
->This will vary depending on your project setup
+> Setup will vary depending on your project setup
 ```javascript
 module.exports = function (grunt) {
-	var  path = require('path');
+  require('time-grunt')(grunt);
+  require('load-grunt-tasks')(grunt);
 
-	grunt.loadTasks('grunt/tasks');
+  grunt.loadTasks('grunt/tasks');
 
-	require('time-grunt')(grunt); // Display execution time of grunt tasks, NOT Required
-
-	// Load all grunt configs, look in the config directory to modify configuration for any specific task
-	require('load-grunt-config')(grunt, {
-		configPath:  path.join(process.cwd(), 'grunt/config')
-	});
+  grunt.initConfig({
+    davos: require('./grunt/config/davos.js')
+  });
 };
 ```
 
 &nbsp;
-Our Grunt setup structure, will look for tasks in the *grunt/tasks* path,
-configurations will be placed in *grunt/config*
-
-- In *grunt/config* first we create **aliases.yaml** file to properly structure our configurations with the tasks
->For more information on this type of Grunt setup, check the following [guide](https://marioaraque.com/grunt-load-config)
-```jaml
-# Yaml Parser: http://yaml-online-parser.appspot.com/
-davos-split:
-- 'davos_split:split'
-davos-merge:
-- 'davos_merge:merge'
-```
-* We will also be creating a separate file to keep our paths in one place, create a **davos_settings.js** in the **same folder**
->NOTE: Paths will vary for each project
+- Davos tasks in tasks/davos.js
 ```javascript
-module.exports = {
-	folders: {
-		metaOutputFile:  'sites/site_template/MergedMeta/merged_metadata.xml',
-		metaInputFIle:  'sites/site_template/meta/system-objecttype-extensions.xml',
-		metaOutput:  'sites/site_template/SplittedMeta'
-	}
+var Davos = require('davos');
+var requireDir = require('require-dir');
+var config = requireDir('../config').davos;
+
+async function switchVer(davos, args) {
+    let version = args.find((el) => el.indexOf('--ver') != -1);
+
+    if (!version) {
+        console.log('Please specify a version');
+        console.log('To list all available versions, execute "gulp davos:code-list"');
+        return;
+    }
+
+    version = version.split('=')[1];
+    await davos.activateCodeVersion(version);
 }
-```
 
-* Afterwards, we create the first configuration js file, **davos_split.js**
+async function site(davos, args) {
+    let fileName = args.find((el) => el.indexOf('--file') != -1);
 
-```javascript
-module.exports = {
-	split: {
-		in:  '<%= davos_settings.folders.metaInputFile %>',
-		out:  '<%= davos_settings.folders.metaOutput %>'
-	}
+    if (!fileName) {
+        await davos.uploadSitesMeta();
+    } else {
+        fileName = fileName.split('=')[1];
+        await davos.uploadSitesMeta(fileName);
+    }
 }
-```
 
-* We then create configuration for another task, **davos_merge.js**
-```javascript
 module.exports = {
-	merge: {
-		in:  '<%= davos_settings.folders.metaOutput %>',
-		out:  '<%= davos_settings.folders.metaOutputFile %>'
-	}
-}
-```
+    split: async function (done) {
+        var davos = new Davos();
+        await davos.split(config.metaInputFile, config.metaOutput);
+        done();
+    },
+    merge: async function (done) {
+        var davos = new Davos();
+        await davos.merge(config.metaOutput, config.metaOutputFile);
+        done();
+    },
+    ['code-list']: async function (done) {
+        var davos = new Davos();
+        await davos.listCode();
+        done();
+    },
+    ['code-switch']: async function (done) {
+        var davos = new Davos();
+        await switchVer(davos, process.argv);
+        done();
+    },
+    ['code-shift']: async function (done) {
+        var davos = new Davos();
+        await davos.shiftCodeVers();
+        done();
+    },
+    ['code-deploy']: async function (done) {
+        var davos = new Davos();
+        await davos.deployCodeVer();
+        done();
+    },
+    ['code-deploylist']: async function (done) {
+        var davos = new Davos();
+        await davos.listDeploy();
+        done();
+    },
+    ['upload-site']: async function (done) {
+        var davos = new Davos();
+        await site(davos, process.argv);
+        done();
+    },
+    ['upload-cartridges']: async function (done) {
+        var davos = new Davos();
+        await davos.uploadCartridges();
+        done();
+    },
+    watch: function (done) {
+        var davos = new Davos();
 
-#### At this point, the setup configurations for the desired tasks are created
-> Extend further more if any additional **Davos** tasks are required
-
-#### We move on to grunt/tasks
-- In the *grunt/tasks* folder, we need to create two separate files **davos_split.js** and **davos_merge.js**
-
-- **davos_split.js** 
-```javascript
-var  Davos = require('davos');
-
-module.exports = function (grunt) {
-	grunt.registerMultiTask('davos_split', 'Split metadata file into separate files per type-extension', function () {
-	var  input = this.data.in;
-	var  output = this.data.out;
-	var  davos = new  Davos();
-
-	davos.split(input, output);
-	});
+        davos.watch();
+    },
 };
+
 ```
 
-- **davos_merge.js**
->NOTE: We need to let Grunt know this is an *async* task, otherwise execution will fail
-```javascript
-var  Davos = require('davos');
-
-module.exports = function (grunt) {
-	grunt.registerMultiTask('davos_merge', 'Merge splitted metadata files into one', function () {
-		var  done = this.async();
-		var  input = this.data.in;
-		var  output = this.data.out;
-		var  davos = new  Davos();
-
-		davos.merge(input, output).then((data) => {
-			done();
-		}).catch((err) => {
-			console.log(err);
-			done(false);
-		});
-	});
-};
-```
 &nbsp;
-* To execute, simply run the grunt commands, defined in the .yaml file
+
+- Setup configuration in config/davos.js
+```javascript
+module.exports = {
+    options: {
+        code: {
+            shift: {},
+            switch: {},
+            deploy: {},
+            list: {},
+            deploylist: {}
+        },
+        merge: {
+            in: 'sites/site_template/SplittedMeta',
+            out: 'sites/site_template/MergedMeta/merged_metadata.xml'
+        },
+        split: {
+            in: 'sites/site_template/meta/system-objecttype-extensions.xml',
+            out: 'sites/site_template/SplittedMeta'
+        },
+        upload: {
+            cartridges: {},
+            site: {}
+        },
+        watch: {
+            target: {}
+        }
+    }
+}
+```
+
+* To execute, simply run the one of the commands with a passed task parameter 'do'
+
 ```cmd
-grunt davos-split
+grunt davos --do=meta-split
 ```
 
 ```cmd
-grunt davos-merge
+grunt davos --do=watch
 ```
+
 ---
 ### Gulp setup
 > NOTE: Gulp setup may/will vary on the project
@@ -202,6 +266,14 @@ var  tasks = requireDir('./tasks');
 
 gulp.task('davos:split', tasks.davos.split);
 gulp.task('davos:merge', tasks.davos.merge);
+gulp.task('davos:code-list', tasks.davos['code-list']);
+gulp.task('davos:code-switch', tasks.davos['code-switch']);
+gulp.task('davos:code-shift', tasks.davos['code-shift']);
+gulp.task('davos:code-deploy', tasks.davos['code-deploy']);
+gulp.task('davos:code-deploylist', tasks.davos['code-deploylist']);
+gulp.task('davos:upload-site', tasks.davos['upload-site']);
+gulp.task('davos:upload-cartridges', tasks.davos['upload-cartridges']);
+gulp.task('davos:watch', tasks.davos.watch);
 ```
 
 &nbsp;
@@ -222,32 +294,105 @@ module.exports = {
 
 - In our *tasks* folder, we create a task ***davos.js*** file
 ```javascript
-var  Davos = require('davos');
-var  requireDir = require('require-dir');
-var  config = requireDir('../config').davos;
+var Davos = require('davos');
+var requireDir = require('require-dir');
+var config = requireDir('../config').davos;
+
+async function switchVer(davos, args) {
+    let version = args.find((el) => el.indexOf('--ver') != -1);
+
+    if (!version) {
+        console.log('Please specify a version');
+        console.log('To list all available versions, execute "gulp davos:code-list"');
+        return;
+    }
+
+    version = version.split('=')[1];
+    await davos.activateCodeVersion(version);
+}
+
+async function site(davos, args) {
+    let fileName = args.find((el) => el.indexOf('--file') != -1);
+
+    if (!fileName) {
+        await davos.uploadSitesMeta();
+    } else {
+        fileName = fileName.split('=')[1];
+        await davos.uploadSitesMeta(fileName);
+    }
+}
 
 module.exports = {
-	split:  function (done) {
-		var  davos = new  Davos();
-		davos.split(config.metaInputFile, config.metaOutput);
-		done();
-	},
-	merge:  function (done) {
-		var  davos = new  Davos();
-		davos.merge(config.metaOutput, config.metaOutputFile);
-		done();
-	}
+    split: async function (done) {
+        var davos = new Davos();
+        await davos.split(config.metaInputFile, config.metaOutput);
+        done();
+    },
+    merge: async function (done) {
+        var davos = new Davos();
+        await davos.merge(config.metaOutput, config.metaOutputFile);
+        done();
+    },
+    ['code-list']: async function (done) {
+        var davos = new Davos();
+        await davos.listCode();
+        done();
+    },
+    ['code-switch']: async function (done) {
+        var davos = new Davos();
+        await switchVer(davos, process.argv);
+        done();
+    },
+    ['code-shift']: async function (done) {
+        var davos = new Davos();
+        await davos.shiftCodeVers();
+        done();
+    },
+    ['code-deploy']: async function (done) {
+        var davos = new Davos();
+        await davos.deployCodeVer();
+        done();
+    },
+    ['code-deploylist']: async function (done) {
+        var davos = new Davos();
+        await davos.listDeploy();
+        done();
+    },
+    ['upload-site']: async function (done) {
+        var davos = new Davos();
+        await site(davos, process.argv);
+        done();
+    },
+    ['upload-cartridges']: async function (done) {
+        var davos = new Davos();
+        await davos.uploadCartridges();
+        done();
+    },
+    watch: function (done) {
+        var davos = new Davos();
+
+        davos.watch();
+    },
 };
+
 ```
 #### This concludes our Gulp setup
 
-* To execute the created commands:
+* To execute one the created commands:
 
 ```cmd
 gulp davos:split
 ```
 
 ```cmd
-gulp davos:merge
+gulp davos:split
 ```
 
+```cmd
+gulp davos:code-switch --version=myversion
+```
+
+> Note: don't put XML file extension
+```cmd
+gulp davos:upload-site --file=xmlFileName
+```
